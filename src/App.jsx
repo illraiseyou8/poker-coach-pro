@@ -214,11 +214,10 @@ function LoginScreen({ onLogin }) {
     try {
       let user = null;
       if (isConfigured) {
-        // Auth via Supabase users table
-        const rows = await sb.select("users", `username=eq.${encodeURIComponent(username)}&password=eq.${encodeURIComponent(password)}`);
-        user = rows?.[0] || null;
+        // Récupère tous les users et filtre côté client — évite les problèmes d'encodage URL
+        const rows = await sb.select("users");
+        user = (rows || []).find(u => u.username === username && u.password === password) || null;
       } else {
-        // Fallback local
         const users = store.get("pk_users", INITIAL_USERS);
         user = users.find(u => u.username === username && u.password === password);
       }
