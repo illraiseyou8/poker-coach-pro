@@ -205,6 +205,7 @@ function LoginScreen({ onLogin }) {
   const [shake, setShake]       = useState(false);
   const [logging, setLogging]   = useState(false);
 
+  const [debug, setDebug] = useState("");
   const isConfigured = SUPABASE_URL !== "COLLE_TON_URL_ICI";
 
   const handleSubmit = async () => {
@@ -214,9 +215,13 @@ function LoginScreen({ onLogin }) {
     try {
       let user = null;
       if (isConfigured) {
-        // Récupère tous les users et filtre côté client — évite les problèmes d'encodage URL
-        const rows = await sb.select("users");
-        user = (rows || []).find(u => u.username === username && u.password === password) || null;
+        const url = `${SUPABASE_URL}/rest/v1/users`;
+        const resp = await fetch(url, { headers: sbH() });
+        const text = await resp.text();
+        setDebug(`Status: ${resp.status} | Body: ${text.slice(0, 200)}`);
+        if (!resp.ok) { setError(`Erreur Supabase ${resp.status}`); setLogging(false); return; }
+        const rows = JSON.parse(text);
+        user = rows.find(u => u.username === username && u.password === password) || null;
       } else {
         const users = store.get("pk_users", INITIAL_USERS);
         user = users.find(u => u.username === username && u.password === password);
@@ -229,8 +234,9 @@ function LoginScreen({ onLogin }) {
         setShake(true);
         setTimeout(() => setShake(false), 600);
       }
-    } catch {
-      setError("Erreur de connexion");
+    } catch(e) {
+      setError("Erreur: " + e.message);
+      setDebug("Exception: " + e.toString());
     }
     setLogging(false);
   };
@@ -271,6 +277,7 @@ function LoginScreen({ onLogin }) {
           style={{ ...inputStyle, marginTop: 12 }}
         />
         {error && <div style={{ color: "#f87171", fontSize: 12, marginTop: 8, textAlign: "center" }}>{error}</div>}
+        {debug && <div style={{ color: "#fbbf24", fontSize: 10, marginTop: 8, padding: "8px", background: "rgba(0,0,0,0.4)", borderRadius: 2, wordBreak: "break-all", fontFamily: "monospace" }}>{debug}</div>}
         <button onClick={handleSubmit} disabled={logging} style={{ ...btnPrimary, opacity: logging ? 0.6 : 1 }}>
           {logging ? "CONNEXION..." : "CONNEXION"}
         </button>
